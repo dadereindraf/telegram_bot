@@ -29,12 +29,14 @@ async def send_menu(update: Update, context: CallbackContext) -> None:
         [InlineKeyboardButton("Done", callback_data="add_Done")],
         [InlineKeyboardButton("Edit Note", callback_data="edit_note")],
         [InlineKeyboardButton("Show Notes", callback_data="show_notes")],
+        [InlineKeyboardButton("Clear Notes", callback_data="clear_notes")],  # New button
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     if update.message:
         await update.message.reply_text("Choose an action:", reply_markup=reply_markup)
     elif update.callback_query:
         await update.callback_query.message.reply_text("Choose an action:", reply_markup=reply_markup)
+
 
 async def handle_menu_selection(update: Update, context: CallbackContext) -> None:
     """Handle the button clicks for selecting sections."""
@@ -52,6 +54,14 @@ async def handle_menu_selection(update: Update, context: CallbackContext) -> Non
         await show_edit_menu(update, context)
     elif action == "show_notes":
         await show_notes(update, context)
+    elif action == "clear_notes":  # Handle clearing notes
+        handover_notes["Issue"].clear()
+        handover_notes["On Progress"].clear()
+        handover_notes["Done"].clear()
+        await query.edit_message_text("All notes have been cleared.")  # Make sure this message is being sent
+        await send_menu(update, context)  # Return to the menu
+
+
 
 async def add_note_message(update: Update, context: CallbackContext) -> None:
     """Add a note to the selected section from the user's message."""
@@ -183,7 +193,7 @@ def main():
     # Handlers
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("show", show_notes))
-    application.add_handler(CallbackQueryHandler(handle_menu_selection, pattern="^add_|edit_note$|show_notes$"))
+    application.add_handler(CallbackQueryHandler(handle_menu_selection, pattern="^add_|edit_note$|show_notes$|clear_notes$"))
     application.add_handler(CallbackQueryHandler(handle_edit_selection, pattern="^edit_"))
     application.add_handler(MessageHandler(filters.TEXT, handle_text_message))
 
