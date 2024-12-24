@@ -28,8 +28,9 @@ async def send_menu(update: Update, context: CallbackContext) -> None:
         [InlineKeyboardButton("On Progress", callback_data="add_On Progress")],
         [InlineKeyboardButton("Done", callback_data="add_Done")],
         [InlineKeyboardButton("Edit Note", callback_data="edit_note")],
+        [InlineKeyboardButton("Delete Note", callback_data="delete_note")],  # New delete button
         [InlineKeyboardButton("Show Notes", callback_data="show_notes")],
-        [InlineKeyboardButton("Clear Notes", callback_data="clear_notes")],  # New button
+        [InlineKeyboardButton("Clear Notes", callback_data="clear_notes")],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     if update.message:
@@ -52,15 +53,80 @@ async def handle_menu_selection(update: Update, context: CallbackContext) -> Non
         context.user_data["awaiting_note"] = True
     elif action == "edit_note":
         await show_edit_menu(update, context)
+    elif action == "delete_note":
+        await show_delete_menu(update, context)  # Show delete menu
     elif action == "show_notes":
         await show_notes(update, context)
-    elif action == "clear_notes":  # Handle clearing notes
+    elif action == "clear_notes":
         handover_notes["Issue"].clear()
         handover_notes["On Progress"].clear()
         handover_notes["Done"].clear()
-        await query.edit_message_text("All notes have been cleared.")  # Make sure this message is being sent
-        await send_menu(update, context)  # Return to the menu
+        await query.edit_message_text("All notes have been cleared.")
+        await send_menu(update, context)
 
+
+async def show_delete_menu(update: Update, context: CallbackContext) -> None:
+    """Show a menu for deleting notes from the sections."""
+    keyboard = []
+    for section, notes in handover_notes.items():
+        if notes:
+            keyboard.append([InlineKeyboardButton(f"Delete from {section}", callback_data=f"delete_{section}")])
+    if not keyboard:
+        await update.callback_query.message.reply_text("No notes available to delete.")
+        await send_menu(update, context)
+    else:
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await update.callback_query.message.reply_text("Choose a section to delete from:", reply_markup=reply_markup)
+
+
+async def handle_delete_selection(update: Update, context: CallbackContext) -> None:
+    """Handle selection of a section to delete from."""
+    query = update.callback_query
+    await query.answer()
+
+    action = query.data.split("_")
+
+    if action[0] == "delete":
+        section = action[1]
+        context.user_data["delete_section"] = section
+
+        message = f"Current notes in {section}:\n"
+        for idx, note in enumerate(handover_notes[section], start=1):
+            message += f"  {idx}. {note}\n"
+        if not handover_notes[section]:
+            message += "  No notes available to delete.\n"
+            await query.edit_message_text(message)
+            await send_menu(update, context)
+            return
+
+        message += "\nPlease type the number of the note you want to delete."
+        await query.edit_message_text(message)
+        context.user_data["awaiting_delete_index"] = True
+
+
+async def delete_note_message(update: Update, context: CallbackContext) -> None:
+    """Handle the deletion of a specific note."""
+    if context.user_data.get("awaiting_delete_index"):
+        try:
+            index = int(update.message.text) - 1
+            section = context.user_data.get("delete_section")
+
+            if 0 <= index < len(handover_notes[section]):
+                deleted_note = handover_notes[section].pop(index)
+                await update.message.reply_text(f"Note deleted from {section}: {deleted_note}")
+
+                # Reset user data flags
+                context.user_data["awaiting_delete_index"] = False
+                context.user_data["delete_section"] = None
+
+                # Show the menu again
+                await send_menu(update, context)
+            else:
+                await update.message.reply_text("Invalid note number. Please try again.")
+        except ValueError:
+            await update.message.reply_text("Please enter a valid number.")
+    else:
+        await update.message.reply_text("Please use the menu to select a section first.")
 
 
 async def add_note_message(update: Update, context: CallbackContext) -> None:
@@ -84,6 +150,7 @@ async def add_note_message(update: Update, context: CallbackContext) -> None:
     else:
         await update.message.reply_text("Please use the menu to select a section first.")
 
+
 async def show_notes(update: Update, context: CallbackContext) -> None:
     """Command to display all notes."""
     message = "Handover Notes:\n\n"
@@ -104,6 +171,7 @@ async def show_notes(update: Update, context: CallbackContext) -> None:
     
     await send_menu(update, context)  # After showing the notes, send the menu again
 
+
 async def show_edit_menu(update: Update, context: CallbackContext) -> None:
     """Show a menu for editing notes."""
     keyboard = []
@@ -116,6 +184,7 @@ async def show_edit_menu(update: Update, context: CallbackContext) -> None:
     else:
         reply_markup = InlineKeyboardMarkup(keyboard)
         await update.callback_query.message.reply_text("Choose an action:", reply_markup=reply_markup)
+
 
 async def handle_edit_selection(update: Update, context: CallbackContext) -> None:
     """Handle selection of a section to edit."""
@@ -140,6 +209,7 @@ async def handle_edit_selection(update: Update, context: CallbackContext) -> Non
         message += "\nPlease type the number of the note you want to edit."
         await query.edit_message_text(message)
         context.user_data["awaiting_edit_index"] = True
+
 
 async def edit_note_message(update: Update, context: CallbackContext) -> None:
     """Handle the editing of a specific note."""
@@ -176,6 +246,7 @@ async def edit_note_message(update: Update, context: CallbackContext) -> None:
     else:
         await update.message.reply_text("Please use the menu to select a section first.")
 
+
 async def handle_text_message(update: Update, context: CallbackContext) -> None:
     """Handle text messages based on the current context.""" 
     if context.user_data.get("awaiting_edit_index"):
@@ -184,8 +255,11 @@ async def handle_text_message(update: Update, context: CallbackContext) -> None:
         await edit_note_message(update, context)
     elif context.user_data.get("awaiting_note"):
         await add_note_message(update, context)
+    elif context.user_data.get("awaiting_delete_index"):
+        await delete_note_message(update, context)
     else:
         await update.message.reply_text("Please use the menu to select a section first.")
+
 
 def main():
     application = Application.builder().token("7647611180:AAHLpJl9zLlMvy7F7yYqaWNUTUc2yms8ffY").build()
@@ -193,8 +267,9 @@ def main():
     # Handlers
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("show", show_notes))
-    application.add_handler(CallbackQueryHandler(handle_menu_selection, pattern="^add_|edit_note$|show_notes$|clear_notes$"))
+    application.add_handler(CallbackQueryHandler(handle_menu_selection, pattern="^add_|edit_note$|show_notes$|clear_notes$|delete_note$"))
     application.add_handler(CallbackQueryHandler(handle_edit_selection, pattern="^edit_"))
+    application.add_handler(CallbackQueryHandler(handle_delete_selection, pattern="^delete_"))
     application.add_handler(MessageHandler(filters.TEXT, handle_text_message))
 
     application.run_polling()
