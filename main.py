@@ -167,13 +167,11 @@ async def delete_note_message(update: Update, context: CallbackContext) -> None:
             if 0 <= index < len(handover_notes[section]):
                 deleted_note = handover_notes[section].pop(index)
                 await update.message.reply_text(f"Note deleted from {section}: {deleted_note}")
+                await show_notes(update, context)
 
                 # Reset user data flags
                 context.user_data["awaiting_delete_index"] = False
                 context.user_data["delete_section"] = None
-
-                # Show the menu again
-                await send_menu(update, context)
             else:
                 await update.message.reply_text("Invalid note number. Please try again.")
         except ValueError:
@@ -186,21 +184,20 @@ async def add_note_message(update: Update, context: CallbackContext) -> None:
     """Add a note to the selected section from the user's message."""
     section = context.user_data.get("selected_section")  # Get the selected section
     note = update.message.text
-    print(f"DEBUG: section={section}, note={note}")  # Tambahkan debugging
-    
-    # Convert section to proper case (capitalize first letter of each word)
+
     if section:
-        section = section.title()  # Ubah menjadi format "Title Case" untuk konsistensi
+        section = section.title()  # Convert to Title Case for consistency
 
     if context.user_data.get("awaiting_note"):
-        if section and section in handover_notes:  # Pastikan key sesuai dengan dictionary
+        if section and section in handover_notes:
             handover_notes[section].append(note)
             await update.message.reply_text(f"Added to {section}: {note}")
+            await show_notes(update, context)  # Show notes after adding the note
         else:
             await update.message.reply_text("Invalid section. Please try again.")
         context.user_data["awaiting_note"] = False
         context.user_data["selected_section"] = None
-        await send_menu(update, context)
+
 
 async def show_notes(update: Update, context: CallbackContext) -> None:
     """Command to display all notes."""
@@ -264,7 +261,6 @@ async def handle_edit_selection(update: Update, context: CallbackContext) -> Non
 
 
 async def edit_note_message(update: Update, context: CallbackContext) -> None:
-    """Handle the editing of a specific note."""
     if context.user_data.get("awaiting_edit_index"):
         try:
             index = int(update.message.text) - 1
@@ -293,10 +289,12 @@ async def edit_note_message(update: Update, context: CallbackContext) -> None:
         context.user_data["edit_section"] = None
         context.user_data["edit_index"] = None
 
-        # Show the menu again
-        await send_menu(update, context)
+        # Show the updated notes
+        await show_notes(update, context)
     else:
         await update.message.reply_text("Please use the menu to select a section first.")
+        await show_notes(update, context)
+
 
 async def show_move_menu(update: Update, context: CallbackContext) -> None:
     """Show a menu for moving notes."""
@@ -361,6 +359,7 @@ async def move_note_message(update: Update, context: CallbackContext) -> None:
     else:
         await update.message.reply_text("Please use the menu to select a section first.")
 
+ 
 async def handle_target_selection(update: Update, context: CallbackContext) -> None:
     """Handle selection of target section for moving a note."""
     query = update.callback_query
@@ -372,13 +371,11 @@ async def handle_target_selection(update: Update, context: CallbackContext) -> N
 
         handover_notes[target_section].append(note_to_move)
         await query.edit_message_text(f"Moved note to {target_section}: {note_to_move}")
+        await show_notes(update, context)
 
         # Reset user data flags
         context.user_data["awaiting_target_section"] = False
         context.user_data["note_to_move"] = None
-
-        # Show the menu again
-        await send_menu(update, context)
 
 
 async def handle_text_message(update: Update, context: CallbackContext) -> None:
