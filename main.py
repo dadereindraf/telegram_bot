@@ -1,5 +1,9 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters, CallbackContext
+import datetime
+
+today = datetime.date.today()
+today_str = today.strftime("%B %d, %Y")
 
 # Dictionary to store handover notes
 handover_notes = {
@@ -32,7 +36,6 @@ async def send_menu(update: Update, context: CallbackContext) -> None:
         [InlineKeyboardButton("Delete Note", callback_data="delete_note")],  # New delete button
         [InlineKeyboardButton("Show Notes", callback_data="show_notes")],
         [InlineKeyboardButton("Clear Notes", callback_data="clear_notes")],
-        
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     if update.message:
@@ -40,19 +43,31 @@ async def send_menu(update: Update, context: CallbackContext) -> None:
     elif update.callback_query:
         await update.callback_query.message.reply_text("Choose an action:", reply_markup=reply_markup)
 
-
 async def handle_menu_selection(update: Update, context: CallbackContext) -> None:
     """Handle the button clicks for selecting sections."""
     query = update.callback_query
     await query.answer()
 
     action = query.data
+    current_message_text = query.message.text  # Save current message text
 
     if action.startswith("add_"):
         section = action.split("_")[1]
         context.user_data["selected_section"] = section
-        await query.edit_message_text(f"You selected: {section}. Please type your note.")
-        context.user_data["awaiting_note"] = True
+
+        # Check the selected section and show appropriate submenu
+        if section == "Issue":
+            await show_issue_submenu(update, context)
+        elif section == "On Progress":
+            await show_on_progress_submenu(update, context)
+        elif section == "Done":
+            await show_done_submenu(update, context)
+        else:
+            new_message_text = f"You selected: {section}. Please type your note."
+            if current_message_text != new_message_text:
+                await query.edit_message_text(new_message_text)  # Only edit if text changes
+            context.user_data["awaiting_note"] = True
+
     elif action == "edit_note":
         await show_edit_menu(update, context)
     elif action == "delete_note":
@@ -65,8 +80,41 @@ async def handle_menu_selection(update: Update, context: CallbackContext) -> Non
         handover_notes["Issue"].clear()
         handover_notes["On Progress"].clear()
         handover_notes["Done"].clear()
-        await query.edit_message_text("All notes have been cleared.")
+        if current_message_text != "All notes have been cleared.":
+            await query.edit_message_text("All notes have been cleared.")
         await send_menu(update, context)
+    elif action == "cancel":
+        if current_message_text != "Cancelled. Returning to main menu.":
+            await query.edit_message_text("Cancelled. Returning to main menu.")  # Only edit if text changes
+        await send_menu(update, context)  # Return to main menu when cancel is selected
+
+
+async def show_issue_submenu(update: Update, context: CallbackContext) -> None:
+    """Show a submenu for the 'Issue' section with two options: Add Issue or Cancel."""
+    keyboard = [
+        [InlineKeyboardButton("Add Issue", callback_data="add_issue_confirm")],
+        [InlineKeyboardButton("Cancel", callback_data="cancel")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.callback_query.message.reply_text("You selected 'Issue'. What would you like to do?", reply_markup=reply_markup)
+
+async def show_on_progress_submenu(update: Update, context: CallbackContext) -> None:
+    """Show a submenu for the 'On Progress' section."""
+    keyboard = [
+        [InlineKeyboardButton("Add On Progress", callback_data="add_on progress_confirm")],
+        [InlineKeyboardButton("Cancel", callback_data="cancel")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.callback_query.message.reply_text("You selected 'On Progress'. What would you like to do?", reply_markup=reply_markup)
+
+async def show_done_submenu(update: Update, context: CallbackContext) -> None:
+    """Show a submenu for the 'On Progress' section."""
+    keyboard = [
+        [InlineKeyboardButton("Add Done", callback_data="add_done_confirm")],
+        [InlineKeyboardButton("Cancel", callback_data="cancel")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.callback_query.message.reply_text("You selected 'Done'. What would you like to do?", reply_markup=reply_markup)
 
 
 async def show_delete_menu(update: Update, context: CallbackContext) -> None:
@@ -79,6 +127,7 @@ async def show_delete_menu(update: Update, context: CallbackContext) -> None:
         await update.callback_query.message.reply_text("No notes available to delete.")
         await send_menu(update, context)
     else:
+        keyboard.append([InlineKeyboardButton("Cancel", callback_data="cancel")])  # Add cancel button
         reply_markup = InlineKeyboardMarkup(keyboard)
         await update.callback_query.message.reply_text("Choose a section to delete from:", reply_markup=reply_markup)
 
@@ -135,29 +184,27 @@ async def delete_note_message(update: Update, context: CallbackContext) -> None:
 
 async def add_note_message(update: Update, context: CallbackContext) -> None:
     """Add a note to the selected section from the user's message."""
-    if context.user_data.get("awaiting_note"):
-        section = context.user_data.get("selected_section")
-        note = update.message.text
+    section = context.user_data.get("selected_section")  # Get the selected section
+    note = update.message.text
+    print(f"DEBUG: section={section}, note={note}")  # Tambahkan debugging
+    
+    # Convert section to proper case (capitalize first letter of each word)
+    if section:
+        section = section.title()  # Ubah menjadi format "Title Case" untuk konsistensi
 
-        if section in handover_notes:
+    if context.user_data.get("awaiting_note"):
+        if section and section in handover_notes:  # Pastikan key sesuai dengan dictionary
             handover_notes[section].append(note)
             await update.message.reply_text(f"Added to {section}: {note}")
         else:
             await update.message.reply_text("Invalid section. Please try again.")
-
-        # Reset user data flags
         context.user_data["awaiting_note"] = False
         context.user_data["selected_section"] = None
-
-        # Show the menu again
         await send_menu(update, context)
-    else:
-        await update.message.reply_text("Please use the menu to select a section first.")
-
 
 async def show_notes(update: Update, context: CallbackContext) -> None:
     """Command to display all notes."""
-    message = "Handover Notes:\n\n"
+    message = f"FMC Pipeline {today_str}\n\n"
     for section, notes in handover_notes.items():
         message += f"{section}:\n"
         if notes:
@@ -186,6 +233,7 @@ async def show_edit_menu(update: Update, context: CallbackContext) -> None:
         await update.callback_query.message.reply_text("No notes available to edit.")
         await send_menu(update, context)  # Always show the main menu
     else:
+        keyboard.append([InlineKeyboardButton("Cancel", callback_data="cancel")])  # Add cancel button
         reply_markup = InlineKeyboardMarkup(keyboard)
         await update.callback_query.message.reply_text("Choose an action:", reply_markup=reply_markup)
 
@@ -260,6 +308,7 @@ async def show_move_menu(update: Update, context: CallbackContext) -> None:
         await update.callback_query.message.reply_text("No notes available to move.")
         await send_menu(update, context)
     else:
+        keyboard.append([InlineKeyboardButton("Cancel", callback_data="cancel")])  # Add cancel button
         reply_markup = InlineKeyboardMarkup(keyboard)
         await update.callback_query.message.reply_text("Choose a section to move from:", reply_markup=reply_markup)
 
@@ -354,15 +403,12 @@ def main():
     # Handlers
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("show", show_notes))
-    application.add_handler(CallbackQueryHandler(handle_menu_selection, pattern="^add_|edit_note$|show_notes$|clear_notes$|delete_note$|move_note$"))
+    application.add_handler(CallbackQueryHandler(handle_menu_selection, pattern="^add_|edit_note$|show_notes$|clear_notes$|delete_note$|move_note$|cancel$"))
     application.add_handler(CallbackQueryHandler(handle_edit_selection, pattern="^edit_"))
     application.add_handler(CallbackQueryHandler(handle_delete_selection, pattern="^delete_"))
     application.add_handler(CallbackQueryHandler(handle_move_selection, pattern="^move_"))
     application.add_handler(CallbackQueryHandler(handle_target_selection, pattern="^target_"))
     application.add_handler(MessageHandler(filters.TEXT, handle_text_message))  # Handle all text input
-
-    application.run_polling()
-
 
     application.run_polling()
 
