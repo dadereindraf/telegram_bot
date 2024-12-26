@@ -82,7 +82,7 @@ async def handle_menu_selection(update: Update, context: CallbackContext) -> Non
         handover_notes["Done"].clear()
         if current_message_text != "All notes have been cleared.":
             await query.edit_message_text("All notes have been cleared.")
-        await send_menu(update, context)
+        await show_notes(update, context)
     elif action == "cancel":
         if current_message_text != "Cancelled. Returning to main menu.":
             await query.edit_message_text("Cancelled. Returning to main menu.")  # Only edit if text changes
@@ -125,7 +125,7 @@ async def show_delete_menu(update: Update, context: CallbackContext) -> None:
             keyboard.append([InlineKeyboardButton(f"Delete from {section}", callback_data=f"delete_{section}")])
     if not keyboard:
         await update.callback_query.message.reply_text("No notes available to delete.")
-        await send_menu(update, context)
+        await show_notes(update, context)
     else:
         keyboard.append([InlineKeyboardButton("Cancel", callback_data="cancel")])  # Add cancel button
         reply_markup = InlineKeyboardMarkup(keyboard)
@@ -304,7 +304,7 @@ async def show_move_menu(update: Update, context: CallbackContext) -> None:
             keyboard.append([InlineKeyboardButton(f"Move from {section}", callback_data=f"move_{section}")])
     if not keyboard:
         await update.callback_query.message.reply_text("No notes available to move.")
-        await send_menu(update, context)
+        await show_notes(update, context)
     else:
         keyboard.append([InlineKeyboardButton("Cancel", callback_data="cancel")])  # Add cancel button
         reply_markup = InlineKeyboardMarkup(keyboard)
