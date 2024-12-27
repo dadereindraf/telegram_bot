@@ -176,9 +176,6 @@ async def delete_note_message(update: Update, context: CallbackContext) -> None:
                 await update.message.reply_text("Invalid note number. Please try again.")
         except ValueError:
             await update.message.reply_text("Please enter a valid number.")
-    else:
-        await update.message.reply_text("Please use the menu to select a section first.")
-
 
 async def add_note_message(update: Update, context: CallbackContext) -> None:
     """Add a note to the selected section from the user's message."""
@@ -292,7 +289,6 @@ async def edit_note_message(update: Update, context: CallbackContext) -> None:
         # Show the updated notes
         await show_notes(update, context)
     else:
-        await update.message.reply_text("Please use the menu to select a section first.")
         await show_notes(update, context)
 
 
@@ -356,9 +352,6 @@ async def move_note_message(update: Update, context: CallbackContext) -> None:
                 await update.message.reply_text("Invalid note number. Please try again.")
         except ValueError:
             await update.message.reply_text("Please enter a valid number.")
-    else:
-        await update.message.reply_text("Please use the menu to select a section first.")
-
  
 async def handle_target_selection(update: Update, context: CallbackContext) -> None:
     """Handle selection of target section for moving a note."""
@@ -390,9 +383,6 @@ async def handle_text_message(update: Update, context: CallbackContext) -> None:
         await delete_note_message(update, context)
     elif context.user_data.get("awaiting_move_index") or context.user_data.get("awaiting_target_section"):
         await move_note_message(update, context)
-    else:
-        await update.message.reply_text("Please use the menu to select a section first.")
-
 
 def main():
     application = Application.builder().token("7647611180:AAHLpJl9zLlMvy7F7yYqaWNUTUc2yms8ffY").build()
