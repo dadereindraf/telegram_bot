@@ -390,7 +390,7 @@ async def handle_text_message(update: Update, context: CallbackContext) -> None:
         await move_note_message(update, context)
 
 def main():
-    application = Application.builder().token("7647611180:AAHLpJl9zLlMvy7F7yYqaWNUTUc2yms8ffY").build()
+    application = Application.builder().token("7924322394:AAHhfcnVuRFjLsePt0WhNHzN3CIDyTiaSKY").build()
 
     # Handlers
     application.add_handler(CommandHandler("start", start))
