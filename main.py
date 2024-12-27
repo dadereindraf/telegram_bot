@@ -1,6 +1,7 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters, CallbackContext
 import datetime
+import re
 
 today = datetime.date.today()
 today_str = today.strftime("%B %d, %Y")
@@ -361,6 +362,10 @@ async def handle_target_selection(update: Update, context: CallbackContext) -> N
     if context.user_data.get("awaiting_target_section"):
         target_section = query.data.split("_")[1]
         note_to_move = context.user_data.get("note_to_move")
+
+        # Jika target section adalah "Done", hapus tanda kurung dan isinya
+        if target_section == "Done":
+            note_to_move = re.sub(r"\s*\(.*?\)", "", note_to_move).strip()
 
         handover_notes[target_section].append(note_to_move)
         await query.edit_message_text(f"Moved note to {target_section}: {note_to_move}")
