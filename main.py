@@ -3,8 +3,6 @@ from telegram.ext import Application, CommandHandler, CallbackQueryHandler, Mess
 import datetime
 import re
 
-today = datetime.date.today()
-today_str = today.strftime("%B %d, %Y")
 
 # Dictionary to store handover notes
 handover_notes = {
@@ -199,6 +197,8 @@ async def add_note_message(update: Update, context: CallbackContext) -> None:
 
 async def show_notes(update: Update, context: CallbackContext) -> None:
     """Command to display all notes."""
+    today = datetime.date.today()
+    today_str = today.strftime("%B %d, %Y")
     message = f"FMC Pipeline {today_str}\n\n"
     for section, notes in handover_notes.items():
         message += f"{section}:\n"
