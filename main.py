@@ -197,8 +197,10 @@ async def add_note_message(update: Update, context: CallbackContext) -> None:
 
 async def show_notes(update: Update, context: CallbackContext) -> None:
     """Command to display all notes."""
+    # Ambil tanggal saat ini setiap kali fungsi ini dipanggil
     today = datetime.date.today()
     today_str = today.strftime("%B %d, %Y")
+
     message = f"FMC Pipeline {today_str}\n\n"
     for section, notes in handover_notes.items():
         message += f"{section}:\n"
@@ -209,14 +211,13 @@ async def show_notes(update: Update, context: CallbackContext) -> None:
             message += "  -\n"
         message += "\n"
 
-    # Check if the update is a message or a callback query
+    # Periksa apakah update adalah pesan atau callback query
     if update.message:
         await update.message.reply_text(message)
     elif update.callback_query:
         await update.callback_query.message.edit_text(message)
-    
-    await send_menu(update, context)  # After showing the notes, send the menu again
 
+    await send_menu(update, context)  # Tampilkan menu setelah menampilkan catatan
 
 async def show_edit_menu(update: Update, context: CallbackContext) -> None:
     """Show a menu for editing notes."""
