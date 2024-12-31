@@ -2,6 +2,10 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters, CallbackContext
 import datetime
 import re
+import os
+from dotenv import load_dotenv
+
+BOT_TOKEN = os.getenv('ENV_BOT_TOKEN')
 
 today = datetime.date.today()
 today_str = today.strftime("%B %d, %Y")
@@ -390,7 +394,7 @@ async def handle_text_message(update: Update, context: CallbackContext) -> None:
         await move_note_message(update, context)
 
 def main():
-    application = Application.builder().token("7924322394:AAHhfcnVuRFjLsePt0WhNHzN3CIDyTiaSKY").build()
+    application = Application.builder().token(BOT_TOKEN).build()
 
     # Handlers
     application.add_handler(CommandHandler("start", start))
