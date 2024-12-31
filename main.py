@@ -1,14 +1,13 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters, CallbackContext
-import datetime
+from datetime import datetime
+import dotenv
 import re
 import os
-from dotenv import load_dotenv
+
+dotenv.load_dotenv(dotenv.find_dotenv(usecwd=True))
 
 BOT_TOKEN = os.getenv('ENV_BOT_TOKEN')
-
-today = datetime.date.today()
-today_str = today.strftime("%B %d, %Y")
 
 # Dictionary to store handover notes
 handover_notes = {
@@ -203,6 +202,8 @@ async def add_note_message(update: Update, context: CallbackContext) -> None:
 
 async def show_notes(update: Update, context: CallbackContext) -> None:
     """Command to display all notes."""
+    today = datetime.now()
+    today_str = today.strftime("%B %d, %Y")
     message = f"FMC Pipeline {today_str}\n\n"
     for section, notes in handover_notes.items():
         message += f"{section}:\n"
@@ -394,6 +395,7 @@ async def handle_text_message(update: Update, context: CallbackContext) -> None:
         await move_note_message(update, context)
 
 def main():
+    print(BOT_TOKEN)
     application = Application.builder().token(BOT_TOKEN).build()
 
     # Handlers
